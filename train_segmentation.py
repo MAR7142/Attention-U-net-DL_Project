@@ -57,6 +57,13 @@ def train(arguments):
 
         # Training Iterations
         for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
+            # Diagnostic: fraction of foreground (pancreas, label==1) voxels in this batch's
+            # label tensor, printed for just the first few iterations to sanity-check that
+            # patches actually contain pancreas rather than being mostly empty.
+            if epoch == model.which_epoch and epoch_iter <= 5:
+                fg_fraction = (labels == 1).float().mean().item()
+                print('[diag] epoch %d iter %d: foreground fraction = %.6f' % (epoch, epoch_iter, fg_fraction))
+
             # Make a training update
             model.set_input(images, labels)
             model.optimize_parameters()
