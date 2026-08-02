@@ -136,33 +136,14 @@ class Visualiser():
                 win=self.error_wins[key_s]))
 
     def plot_line(self, x, y, key, split_name):
-        if key not in self.error_plots:
-            self.error_wins[key] = self.display_id * 3 + len(self.error_wins)
-            self.error_plots[key] = self.vis.line(
-                X=np.array([x, x]),
-                Y=np.array([y, y]),
-                opts=dict(
-                    legend=[split_name],
-                    title=self.name + ' {} over time'.format(key),
-                    xlabel='Epochs',
-                    ylabel=key,
-                    win=self.error_wins[key]
-            ))
-        else:
-            self.vis.updateTrace(X=np.array([x]), Y=np.array([y]), win=self.error_plots[key], name=split_name)
+        # No-op: self.vis.updateTrace() doesn't exist on the installed visdom version, and
+        # there's no visdom server running here anyway. Printed losses + saved checkpoints
+        # are all this environment needs.
+        return
     # errors: dictionary of error labels and values
     def plot_current_errors(self, epoch, errors, split_name, counter_ratio=0.0, **kwargs):
-        if self.display_id > 0:
-            for key in errors.keys():
-                x = epoch + counter_ratio
-                y = errors[key]
-                if isinstance(y, dict):
-                    if y['type'] == 'table':
-                        self.plot_table_html(x,y,key,split_name, **kwargs)
-                elif np.isscalar(y):
-                    self.plot_line(x,y,key,split_name)
-                elif y.ndim == 2:
-                    self.plot_heatmap(x,y,key,split_name, **kwargs)
+        # No-op: no visdom server is running in this environment; see plot_line().
+        return
 
 
     # errors: same format as |errors| of plotCurrentErrors
