@@ -60,7 +60,7 @@ def train(arguments):
             # Diagnostic: fraction of foreground (pancreas, label==1) voxels in this batch's
             # label tensor, printed for just the first few iterations to sanity-check that
             # patches actually contain pancreas rather than being mostly empty.
-            if epoch == model.which_epoch and epoch_iter <= 5:
+            if epoch == 0 and epoch_iter <= 5:
                 fg_fraction = (labels == 1).float().mean().item()
                 print('[diag] epoch %d iter %d: foreground fraction = %.6f' % (epoch, epoch_iter, fg_fraction))
 
