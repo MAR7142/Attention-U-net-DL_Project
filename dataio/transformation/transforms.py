@@ -1,10 +1,23 @@
-import torchsample.transforms as ts
 from pprint import pprint
+
+import collections
+import collections.abc
+# torchsample/callbacks.py (pulled in transitively when torchsample is imported below) does
+# "from collections import Iterable", which collections removed in Python 3.10+ (moved to
+# collections.abc). Patch it back onto collections before torchsample is ever imported.
+if not hasattr(collections, 'Iterable'):
+    collections.Iterable = collections.abc.Iterable
 
 
 class Transformations:
 
     def __init__(self, name):
+        # Deferred so that importing this module (and everything that transitively imports
+        # it, e.g. train_segmentation.py at startup) doesn't hard-fail on the unmaintained
+        # torchsample dependency before argparse/config loading even runs. The import error,
+        # if it happens, now surfaces here instead of at process start.
+        global ts
+        import torchsample.transforms as ts
         self.name = name
 
         # Input patch and scale size

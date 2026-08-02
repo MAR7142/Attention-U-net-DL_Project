@@ -82,10 +82,13 @@ class FeedForwardSegmentation(BaseModel):
         if split == 'train':
             self.prediction = self.net(Variable(self.input))
         elif split == 'test':
-            self.prediction = self.net(Variable(self.input, volatile=True))
-            # Apply a softmax and return a segmentation map
-            self.logits = self.net.apply_argmax_softmax(self.prediction)
-            self.pred_seg = self.logits.data.max(1)[1].unsqueeze(1)
+            # `volatile=True` was removed from Variable; torch.no_grad() is the modern
+            # way to skip autograd graph construction during inference/validation
+            with torch.no_grad():
+                self.prediction = self.net(Variable(self.input))
+                # Apply a softmax and return a segmentation map
+                self.logits = self.net.apply_argmax_softmax(self.prediction)
+                self.pred_seg = self.logits.data.max(1)[1].unsqueeze(1)
             
     def backward(self):
         self.loss_S = self.criterion(self.prediction, self.target)
@@ -128,7 +131,8 @@ class FeedForwardSegmentation(BaseModel):
         return OrderedDict(seg_stats)
 
     def get_current_errors(self):
-        return OrderedDict([('Seg_Loss', self.loss_S.data[0])
+        # 0-dim tensor indexing via .data[0] was removed; .item() extracts the Python scalar
+        return OrderedDict([('Seg_Loss', self.loss_S.item())
                             ])
 
     def get_current_visuals(self):

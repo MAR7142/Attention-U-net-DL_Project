@@ -15,9 +15,11 @@ def load_nifti_img(filepath, dtype):
     :return: return numpy array
     '''
     nim = nib.load(filepath)
-    out_nii_array = np.array(nim.get_data(),dtype=dtype)
+    # nibabel removed get_data(); get_fdata() is the modern replacement (cast to dtype below)
+    out_nii_array = np.array(nim.get_fdata(),dtype=dtype)
     out_nii_array = np.squeeze(out_nii_array) # drop singleton dim in case temporal dim exists
-    meta = {'affine': nim.get_affine(),
+    # nibabel removed get_affine(); .affine is the modern replacement (a property, not a method)
+    meta = {'affine': nim.affine,
             'dim': nim.header['dim'],
             'pixdim': nim.header['pixdim'],
             'name': os.path.basename(filepath)
