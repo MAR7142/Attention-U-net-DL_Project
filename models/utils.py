@@ -3,7 +3,9 @@ Misc Utility functions
 '''
 
 import os
+from functools import partial
 import numpy as np
+import torch
 import torch.optim as optim
 from torch.nn import CrossEntropyLoss
 from utils.metrics import segmentation_scores, dice_score_list
@@ -38,6 +40,18 @@ def get_criterion(opts):
         criterion = SoftDiceLoss(opts.output_nc)
     elif opts.criterion == 'dice_loss_pancreas_only':
         criterion = CustomSoftDiceLoss(opts.output_nc, class_ids=[0, 2])
+    elif opts.criterion == 'weighted_cross_entropy':
+        # class 0 (background) keeps weight 1.0; class 1 (foreground/pancreas)
+        # gets opts.class_weight; any additional classes default to 1.0
+        weight = torch.ones(opts.output_nc)
+        weight[1] = opts.class_weight
+        if opts.gpu_ids and torch.cuda.is_available():
+            weight = weight.cuda()
+        if opts.type == 'seg':
+            base_fn = cross_entropy_2D if opts.tensor_dim == '2D' else cross_entropy_3D
+            criterion = partial(base_fn, weight=weight)
+        elif 'classifier' in opts.type:
+            criterion = CrossEntropyLoss(weight=weight)
 
     return criterion
 
