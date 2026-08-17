@@ -1,4 +1,5 @@
 import numpy
+import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -12,6 +13,12 @@ from utils.error_logger import ErrorLogger
 from models import get_model
 
 def train(arguments):
+
+    # Fixed seed for reproducible weight init and DataLoader shuffling across runs.
+    # Per-sample augmentation RNGs inside the dataset loaders' __getitem__ are
+    # deliberately left time-seeded (see dataio/loader/*.py) - that's a separate concern.
+    torch.manual_seed(42)
+    numpy.random.seed(42)
 
     # Parse input arguments
     json_filename = arguments.config
