@@ -22,9 +22,22 @@ class Visualiser():
         self.error_plots = dict()
         self.error_wins = dict()
 
+        self.vis = None
         if self.display_id > 0:
-            import visdom
-            self.vis = visdom.Visdom(port=opt.display_port)
+            try:
+                import visdom
+                try:
+                    vis = visdom.Visdom(port=opt.display_port, use_incoming_socket=False)
+                except TypeError:
+                    # older/newer visdom versions may not accept use_incoming_socket
+                    vis = visdom.Visdom(port=opt.display_port)
+                if vis.check_connection():
+                    self.vis = vis
+                else:
+                    print('Visualiser: no Visdom server found on port %d - visualisation disabled.' % opt.display_port)
+            except Exception as e:
+                print('Visualiser: could not connect to Visdom (%s) - visualisation disabled.' % e)
+                self.vis = None
 
         if self.use_html:
             self.web_dir = os.path.join(self.save_dir, 'web')
@@ -41,46 +54,49 @@ class Visualiser():
 
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch, save_result):
-        if self.display_id > 0:  # show images in the browser
-            ncols = self.display_single_pane_ncols
-            if ncols > 0:
-                h, w = next(iter(visuals.values())).shape[:2]
-                table_css = """<style>
-                        table {border-collapse: separate; border-spacing:4px; white-space:nowrap; text-align:center}
-                        table td {width: %dpx; height: %dpx; padding: 4px; outline: 4px solid black}
-                        </style>""" % (w, h)
-                title = self.name
-                label_html = ''
-                label_html_row = ''
-                nrows = int(np.ceil(len(visuals.items()) / ncols))
-                images = []
-                idx = 0
-                for label, image_numpy in visuals.items():
-                    label_html_row += '<td>%s</td>' % label
-                    images.append(image_numpy.transpose([2, 0, 1]))
-                    idx += 1
-                    if idx % ncols == 0:
+        if self.vis is not None:  # show images in the browser
+            try:
+                ncols = self.display_single_pane_ncols
+                if ncols > 0:
+                    h, w = next(iter(visuals.values())).shape[:2]
+                    table_css = """<style>
+                            table {border-collapse: separate; border-spacing:4px; white-space:nowrap; text-align:center}
+                            table td {width: %dpx; height: %dpx; padding: 4px; outline: 4px solid black}
+                            </style>""" % (w, h)
+                    title = self.name
+                    label_html = ''
+                    label_html_row = ''
+                    nrows = int(np.ceil(len(visuals.items()) / ncols))
+                    images = []
+                    idx = 0
+                    for label, image_numpy in visuals.items():
+                        label_html_row += '<td>%s</td>' % label
+                        images.append(image_numpy.transpose([2, 0, 1]))
+                        idx += 1
+                        if idx % ncols == 0:
+                            label_html += '<tr>%s</tr>' % label_html_row
+                            label_html_row = ''
+                    white_image = np.ones_like(image_numpy.transpose([2, 0, 1]))*255
+                    while idx % ncols != 0:
+                        images.append(white_image)
+                        label_html_row += '<td></td>'
+                        idx += 1
+                    if label_html_row != '':
                         label_html += '<tr>%s</tr>' % label_html_row
-                        label_html_row = ''
-                white_image = np.ones_like(image_numpy.transpose([2, 0, 1]))*255
-                while idx % ncols != 0:
-                    images.append(white_image)
-                    label_html_row += '<td></td>'
-                    idx += 1
-                if label_html_row != '':
-                    label_html += '<tr>%s</tr>' % label_html_row
-                # pane col = image row
-                self.vis.images(images, nrow=ncols, win=self.display_id + 1,
-                                padding=2, opts=dict(title=title + ' images'))
-                label_html = '<table>%s</table>' % label_html
-                self.vis.text(table_css + label_html, win=self.display_id + 2,
-                              opts=dict(title=title + ' labels'))
-            else:
-                idx = 1
-                for label, image_numpy in visuals.items():
-                    self.vis.image(image_numpy.transpose([2, 0, 1]), opts=dict(title=label),
-                                   win=self.display_id + idx)
-                    idx += 1
+                    # pane col = image row
+                    self.vis.images(images, nrow=ncols, win=self.display_id + 1,
+                                    padding=2, opts=dict(title=title + ' images'))
+                    label_html = '<table>%s</table>' % label_html
+                    self.vis.text(table_css + label_html, win=self.display_id + 2,
+                                  opts=dict(title=title + ' labels'))
+                else:
+                    idx = 1
+                    for label, image_numpy in visuals.items():
+                        self.vis.image(image_numpy.transpose([2, 0, 1]), opts=dict(title=label),
+                                       win=self.display_id + idx)
+                        idx += 1
+            except Exception:
+                pass
 
         if self.use_html and (save_result or not self.saved):  # save images to a html file
             self.saved = True
@@ -104,36 +120,46 @@ class Visualiser():
             webpage.save()
 
     def plot_table_html(self, x, y, key, split_name, **kwargs):
-        key_s = key+'_'+split_name
-        if key_s not in self.error_plots:
-            self.error_wins[key_s] = self.display_id * 3 + len(self.error_wins)
-        else:
-            self.vis.close(self.error_plots[key_s])
+        if self.vis is None:
+            return
+        try:
+            key_s = key+'_'+split_name
+            if key_s not in self.error_plots:
+                self.error_wins[key_s] = self.display_id * 3 + len(self.error_wins)
+            else:
+                self.vis.close(self.error_plots[key_s])
 
 
-        table = pd.DataFrame(np.array(y['data']).transpose(),
-                             index=kwargs['labels'], columns=y['colnames'])
-        table_html = table.round(2).to_html(col_space=200, bold_rows=True, border=12)
+            table = pd.DataFrame(np.array(y['data']).transpose(),
+                                 index=kwargs['labels'], columns=y['colnames'])
+            table_html = table.round(2).to_html(col_space=200, bold_rows=True, border=12)
 
-        self.error_plots[key_s] = self.vis.text(table_html,
-                                                opts=dict(title=self.name+split_name,
-                                                          width=350, height=350,
-                                                          win=self.error_wins[key_s]))
+            self.error_plots[key_s] = self.vis.text(table_html,
+                                                    opts=dict(title=self.name+split_name,
+                                                              width=350, height=350,
+                                                              win=self.error_wins[key_s]))
+        except Exception:
+            pass
 
 
     def plot_heatmap(self, x, y, key, split_name, **kwargs):
-        key_s = key+'_'+split_name
-        if key_s not in self.error_plots:
-            self.error_wins[key_s] = self.display_id * 3 + len(self.error_wins)
-        else:
-            self.vis.close(self.error_plots[key_s])
-        self.error_plots[key_s] = self.vis.heatmap(
-            X=y,
-            opts=dict(
-                columnnames=kwargs['labels'],
-                rownames=kwargs['labels'],
-                title=self.name + ' confusion matrix',
-                win=self.error_wins[key_s]))
+        if self.vis is None:
+            return
+        try:
+            key_s = key+'_'+split_name
+            if key_s not in self.error_plots:
+                self.error_wins[key_s] = self.display_id * 3 + len(self.error_wins)
+            else:
+                self.vis.close(self.error_plots[key_s])
+            self.error_plots[key_s] = self.vis.heatmap(
+                X=y,
+                opts=dict(
+                    columnnames=kwargs['labels'],
+                    rownames=kwargs['labels'],
+                    title=self.name + ' confusion matrix',
+                    win=self.error_wins[key_s]))
+        except Exception:
+            pass
 
     def plot_line(self, x, y, key, split_name):
         # No-op: self.vis.updateTrace() doesn't exist on the installed visdom version, and
