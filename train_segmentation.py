@@ -47,11 +47,11 @@ def train(arguments):
     train_dataset = ds_class(ds_path, split='train',      transform=ds_transform['train'], preload_data=train_opts.preloadData)
     valid_dataset = ds_class(ds_path, split='validation', transform=ds_transform['valid'], preload_data=train_opts.preloadData)
     test_dataset  = ds_class(ds_path, split='test',       transform=ds_transform['valid'], preload_data=train_opts.preloadData)
-    # num_workers=16 OOM-kills on memory-constrained environments; 4 fits within
-    # Colab Pro's extra RAM/CPU cores while still parallelising data loading.
-    train_loader = DataLoader(dataset=train_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=True)
-    valid_loader = DataLoader(dataset=valid_dataset, num_workers=4, batch_size=train_opts.batchSize, shuffle=False)
-    test_loader  = DataLoader(dataset=test_dataset,  num_workers=4, batch_size=train_opts.batchSize, shuffle=False)
+    # num_workers=16 OOM-kills on memory-constrained environments; 6 fits within
+    # Colab Pro High-RAM's 8 CPU cores while leaving headroom for the main process.
+    train_loader = DataLoader(dataset=train_dataset, num_workers=6, batch_size=train_opts.batchSize, shuffle=True)
+    valid_loader = DataLoader(dataset=valid_dataset, num_workers=6, batch_size=train_opts.batchSize, shuffle=False)
+    test_loader  = DataLoader(dataset=test_dataset,  num_workers=6, batch_size=train_opts.batchSize, shuffle=False)
 
     # Visualisation Parameters
     visualizer = Visualiser(json_opts.visualisation, save_dir=model.save_dir)
