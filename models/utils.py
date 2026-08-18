@@ -52,6 +52,17 @@ def get_criterion(opts):
             criterion = partial(base_fn, weight=weight)
         elif 'classifier' in opts.type:
             criterion = CrossEntropyLoss(weight=weight)
+    elif opts.criterion == 'focal_loss':
+        # Same per-class alpha as weighted_cross_entropy (background=1.0,
+        # foreground/pancreas=opts.class_weight), plus the (1-p_t)^gamma
+        # focusing term that down-weights easy (already well-classified) pixels.
+        weight = torch.ones(opts.output_nc)
+        weight[1] = opts.class_weight
+        if opts.gpu_ids and torch.cuda.is_available():
+            weight = weight.cuda()
+        if opts.type == 'seg':
+            base_fn = focal_loss_2D if opts.tensor_dim == '2D' else focal_loss_3D
+            criterion = partial(base_fn, weight=weight, gamma=opts.focal_gamma)
 
     return criterion
 

@@ -20,6 +20,7 @@ class ModelOpts:
         self.path_pre_trained_model = None
         self.criterion = 'cross_entropy'
         self.class_weight = 50.0
+        self.focal_gamma = 2.0
         self.type = 'seg'
 
         # Attention
@@ -53,6 +54,7 @@ class ModelOpts:
         if hasattr(opts, 'path_pre_trained_model'): self.path_pre_trained_model = opts.path_pre_trained_model
         if hasattr(opts, 'criterion'):              self.criterion = opts.criterion
         if hasattr(opts, 'class_weight'):            self.class_weight = opts.class_weight
+        if hasattr(opts, 'focal_gamma'):             self.focal_gamma = opts.focal_gamma
 
         if hasattr(opts, 'nonlocal_mode'): self.nonlocal_mode = opts.nonlocal_mode
         if hasattr(opts, 'attention_dsample'): self.attention_dsample = opts.attention_dsample

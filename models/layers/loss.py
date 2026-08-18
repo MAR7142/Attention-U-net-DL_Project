@@ -26,6 +26,53 @@ def cross_entropy_3D(input, target, weight=None, size_average=True):
     return loss
 
 
+def _flatten_logp_and_target(input, target, dimension):
+    '''
+    Same reshape used by cross_entropy_2D/cross_entropy_3D above: log-softmax
+    over the channel dim, then move channels last and flatten to (-1, c) so it
+    lines up with the flattened (-1,) target - the shape-handling that lets a
+    per-pixel loss be computed independent of the segmentation's batch/spatial dims.
+    '''
+    if dimension == 2:
+        n, c, h, w = input.size()
+        log_p = F.log_softmax(input, dim=1)
+        log_p = log_p.transpose(1, 2).transpose(2, 3).contiguous().view(-1, c)
+    else:
+        n, c, h, w, s = input.size()
+        log_p = F.log_softmax(input, dim=1)
+        log_p = log_p.transpose(1, 2).transpose(2, 3).transpose(3, 4).contiguous().view(-1, c)
+    target = target.view(target.numel())
+    return log_p, target
+
+
+def _focal_loss_from_logp(log_p, target, weight=None, gamma=2.0, size_average=True):
+    '''
+    FL(p_t) = -alpha * (1 - p_t)^gamma * log(p_t), evaluated per-pixel from the
+    already-flattened log-probabilities/target produced by _flatten_logp_and_target.
+    '''
+    log_p_t = log_p.gather(1, target.unsqueeze(1)).squeeze(1)
+    p_t = log_p_t.exp()
+    focal_weight = (1.0 - p_t).pow(gamma)
+
+    loss = -focal_weight * log_p_t
+    if weight is not None:
+        loss = weight[target] * loss
+
+    if size_average:
+        return loss.mean()
+    return loss.sum()
+
+
+def focal_loss_2D(input, target, weight=None, gamma=2.0, size_average=True):
+    log_p, target = _flatten_logp_and_target(input, target, dimension=2)
+    return _focal_loss_from_logp(log_p, target, weight=weight, gamma=gamma, size_average=size_average)
+
+
+def focal_loss_3D(input, target, weight=None, gamma=2.0, size_average=True):
+    log_p, target = _flatten_logp_and_target(input, target, dimension=3)
+    return _focal_loss_from_logp(log_p, target, weight=weight, gamma=gamma, size_average=size_average)
+
+
 class SoftDiceLoss(nn.Module):
     def __init__(self, n_classes):
         super(SoftDiceLoss, self).__init__()
