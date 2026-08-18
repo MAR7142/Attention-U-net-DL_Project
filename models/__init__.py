@@ -25,6 +25,7 @@ class ModelOpts:
         # Attention
         self.nonlocal_mode = 'concatenation'
         self.attention_dsample = (2,2,2)
+        self.use_residual_attention = False
 
         # Attention Classifier
         self.aggregation_mode = 'concatenation'
@@ -55,6 +56,7 @@ class ModelOpts:
 
         if hasattr(opts, 'nonlocal_mode'): self.nonlocal_mode = opts.nonlocal_mode
         if hasattr(opts, 'attention_dsample'): self.attention_dsample = opts.attention_dsample
+        if hasattr(opts, 'use_residual_attention'): self.use_residual_attention = opts.use_residual_attention
         # Classifier
         if hasattr(opts, 'aggregation_mode'): self.aggregation_mode = opts.aggregation_mode
 

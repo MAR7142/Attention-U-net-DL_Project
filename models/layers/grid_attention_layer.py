@@ -6,11 +6,15 @@ from models.networks_other import init_weights
 
 class _GridAttentionBlockND(nn.Module):
     def __init__(self, in_channels, gating_channels, inter_channels=None, dimension=3, mode='concatenation',
-                 sub_sample_factor=(2,2,2)):
+                 sub_sample_factor=(2,2,2), use_residual=False):
         super(_GridAttentionBlockND, self).__init__()
 
         assert dimension in [2, 3]
         assert mode in ['concatenation', 'concatenation_debug', 'concatenation_residual']
+
+        # Optional highway-style skip connection around the attention gate (output = x_hat + x).
+        # Defaults to False so existing behaviour/outputs are unchanged unless explicitly enabled.
+        self.use_residual = use_residual
 
         # Downsampling rate for the input featuremap
         if isinstance(sub_sample_factor, tuple): self.sub_sample_factor = sub_sample_factor
@@ -79,6 +83,12 @@ class _GridAttentionBlockND(nn.Module):
         '''
 
         output = self.operation_function(x, g)
+        if self.use_residual:
+            # W_y (x_hat) is always the same shape as x (self.W is a channel- and
+            # spatial-size-preserving 1x1 conv + BN applied to sigm_psi_f.expand_as(x) * x),
+            # so this add is always shape-safe regardless of mode.
+            W_y, sigm_psi_f = output
+            output = (W_y + x, sigm_psi_f)
         return output
 
     def _concatenation(self, x, g):
@@ -172,12 +182,13 @@ class GridAttentionBlock2D(_GridAttentionBlockND):
 
 class GridAttentionBlock3D(_GridAttentionBlockND):
     def __init__(self, in_channels, gating_channels, inter_channels=None, mode='concatenation',
-                 sub_sample_factor=(2,2,2)):
+                 sub_sample_factor=(2,2,2), use_residual=False):
         super(GridAttentionBlock3D, self).__init__(in_channels,
                                                    inter_channels=inter_channels,
                                                    gating_channels=gating_channels,
                                                    dimension=3, mode=mode,
                                                    sub_sample_factor=sub_sample_factor,
+                                                   use_residual=use_residual,
                                                    )
 
 class _GridAttentionBlockND_TORR(nn.Module):

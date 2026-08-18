@@ -9,7 +9,8 @@ from models.layers.grid_attention_layer import GridAttentionBlock3D
 class unet_CT_multi_att_dsv_3D(nn.Module):
 
     def __init__(self, feature_scale=4, n_classes=21, is_deconv=True, in_channels=3,
-                 nonlocal_mode='concatenation', attention_dsample=(2,2,2), is_batchnorm=True):
+                 nonlocal_mode='concatenation', attention_dsample=(2,2,2), is_batchnorm=True,
+                 use_residual_attention=False):
         super(unet_CT_multi_att_dsv_3D, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels
@@ -37,11 +38,14 @@ class unet_CT_multi_att_dsv_3D(nn.Module):
 
         # attention blocks
         self.attentionblock2 = MultiAttentionBlock(in_size=filters[1], gate_size=filters[2], inter_size=filters[1],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample,
+                                                   use_residual=use_residual_attention)
         self.attentionblock3 = MultiAttentionBlock(in_size=filters[2], gate_size=filters[3], inter_size=filters[2],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample,
+                                                   use_residual=use_residual_attention)
         self.attentionblock4 = MultiAttentionBlock(in_size=filters[3], gate_size=filters[4], inter_size=filters[3],
-                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample)
+                                                   nonlocal_mode=nonlocal_mode, sub_sample_factor= attention_dsample,
+                                                   use_residual=use_residual_attention)
 
         # upsampling
         self.up_concat4 = UnetUp3_CT(filters[4], filters[3], is_batchnorm)
@@ -111,14 +115,16 @@ class unet_CT_multi_att_dsv_3D(nn.Module):
 
 
 class MultiAttentionBlock(nn.Module):
-    def __init__(self, in_size, gate_size, inter_size, nonlocal_mode, sub_sample_factor):
+    def __init__(self, in_size, gate_size, inter_size, nonlocal_mode, sub_sample_factor, use_residual=False):
         super(MultiAttentionBlock, self).__init__()
         self.gate_block_1 = GridAttentionBlock3D(in_channels=in_size, gating_channels=gate_size,
                                                  inter_channels=inter_size, mode=nonlocal_mode,
-                                                 sub_sample_factor= sub_sample_factor)
+                                                 sub_sample_factor= sub_sample_factor,
+                                                 use_residual=use_residual)
         self.gate_block_2 = GridAttentionBlock3D(in_channels=in_size, gating_channels=gate_size,
                                                  inter_channels=inter_size, mode=nonlocal_mode,
-                                                 sub_sample_factor=sub_sample_factor)
+                                                 sub_sample_factor=sub_sample_factor,
+                                                 use_residual=use_residual)
         self.combine_gates = nn.Sequential(nn.Conv3d(in_size*2, in_size, kernel_size=1, stride=1, padding=0),
                                            nn.BatchNorm3d(in_size),
                                            nn.ReLU(inplace=True)

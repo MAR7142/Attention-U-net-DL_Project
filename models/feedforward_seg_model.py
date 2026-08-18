@@ -30,7 +30,8 @@ class FeedForwardSegmentation(BaseModel):
         self.net = get_network(opts.model_type, n_classes=opts.output_nc,
                                in_channels=opts.input_nc, nonlocal_mode=opts.nonlocal_mode,
                                tensor_dim=opts.tensor_dim, feature_scale=opts.feature_scale,
-                               attention_dsample=opts.attention_dsample)
+                               attention_dsample=opts.attention_dsample,
+                               use_residual_attention=opts.use_residual_attention)
         if self.use_cuda: self.net = self.net.cuda()
 
         # load the model if a path is specified or it is in inference mode

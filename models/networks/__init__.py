@@ -11,7 +11,7 @@ from .sononet_grid_attention import *
 
 def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D',
                 nonlocal_mode='embedded_gaussian', attention_dsample=(2,2,2),
-                aggregation_mode='concat'):
+                aggregation_mode='concat', use_residual_attention=False):
     model = _get_model_instance(name, tensor_dim)
 
     if name in ['unet', 'unet_ct_dsv']:
@@ -28,8 +28,7 @@ def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D'
                       nonlocal_mode=nonlocal_mode,
                       feature_scale=feature_scale)
     elif name in ['unet_grid_gating',
-                  'unet_ct_single_att_dsv',
-                  'unet_ct_multi_att_dsv']:
+                  'unet_ct_single_att_dsv']:
         model = model(n_classes=n_classes,
                       is_batchnorm=True,
                       in_channels=in_channels,
@@ -37,6 +36,15 @@ def get_network(name, n_classes, in_channels=3, feature_scale=4, tensor_dim='2D'
                       feature_scale=feature_scale,
                       attention_dsample=attention_dsample,
                       is_deconv=False)
+    elif name in ['unet_ct_multi_att_dsv']:
+        model = model(n_classes=n_classes,
+                      is_batchnorm=True,
+                      in_channels=in_channels,
+                      nonlocal_mode=nonlocal_mode,
+                      feature_scale=feature_scale,
+                      attention_dsample=attention_dsample,
+                      is_deconv=False,
+                      use_residual_attention=use_residual_attention)
     elif name in ['sononet','sononet2']:
         model = model(n_classes=n_classes,
                       is_batchnorm=True,
