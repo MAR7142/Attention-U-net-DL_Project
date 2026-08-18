@@ -80,6 +80,18 @@ def train(arguments):
             errors = model.get_current_errors()
             error_logger.update(errors, split='train')
 
+        # Training set segmentation stats (Class_0/Class_1/Mean_IOU/Overall_Acc), for
+        # comparing against validation/test to distinguish overfitting from class-imbalance
+        # collapse. A separate eval-mode pass over the training set - same validate()/
+        # get_segmentation_stats() path as below, so the numbers are directly comparable.
+        # Only the stats (not Seg_Loss) are logged here, since Seg_Loss for 'train' already
+        # tracks the training-mode loss accumulated above.
+        for epoch_iter, (images, labels) in tqdm(enumerate(train_loader, 1), total=len(train_loader)):
+            model.set_input(images, labels)
+            model.validate()
+            stats = model.get_segmentation_stats()
+            error_logger.update(stats, split='train')
+
         # Validation and Testing Iterations
         for loader, split in zip([valid_loader, test_loader], ['validation', 'test']):
             for epoch_iter, (images, labels) in tqdm(enumerate(loader, 1), total=len(loader)):
